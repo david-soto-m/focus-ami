@@ -1,0 +1,13 @@
+[package]
+name = "focus"
+version = "0.1.0"
+edition = "2021"
+license = "Unlicense"
+description = "A command line tool to help focus"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sysinfo = "^0"
+serde = {version = "1.0", features = ["derive"]}
+serde_yaml = "^0"
