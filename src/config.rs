@@ -1,25 +1,33 @@
 use crate::consts::{config, errors};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
+use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
-    stretch: u8,
+    stretch: u64,
     password: String,
-    processes: Vec<String>,
+    pub processes: HashSet<String>,
 }
 
 impl Config {
-    pub fn new(stretch: u8, password: &str, processes: Vec<&str>) -> Self {
+    /// Creates a new config from the parameters
+    pub fn new(stretch: u64, password: &str, processes: Vec<&str>) -> Self {
         Self {
             stretch,
             password: password.to_string(),
             processes: processes.iter().map(|slice| slice.to_string()).collect(),
         }
     }
+    /// Get the config object from the config.yaml file.
+    ///
+    /// # Panics
+    /// - if there is a bad yaml or if the default config results in a bad yaml
+    /// - if access to the file is compromised anywhere in it's path.
+    /// Lack of access to the config directory is distinguished from lack of access to the file
     pub fn get_init_config() -> Config {
-
         let proj_dirs = ProjectDirs::from(
             config::PROJECT_INFO.0,
             config::PROJECT_INFO.1,
@@ -35,11 +43,17 @@ impl Config {
         if !proj_conf_file.exists() {
             fs::write(
                 proj_conf_file.clone(),
-                serde_yaml::to_string(&Config::default()).unwrap(),
+                serde_yaml::to_string(&Config::new(5, "", vec!["vlc"])).expect(errors::ENCODING),
             )
-            .unwrap();
+            .expect(errors::W_FILE);
         }
-        serde_yaml::from_str::<Config>(&fs::read_to_string(proj_conf_file).unwrap()).unwrap()
+        serde_yaml::from_str::<Config>(&fs::read_to_string(proj_conf_file).expect(errors::R_FILE))
+            .expect(errors::DECODING)
+    }
+
+    /// returns a Duration from the stretch. It transforms from minutes to seconds
+    pub fn get_stretch(&self) -> Duration {
+        Duration::from_secs(self.stretch /* 60*/)
     }
 }
 
