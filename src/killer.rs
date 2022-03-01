@@ -7,9 +7,15 @@ use std::time::Instant;
 use sysinfo::{ProcessExt, System, SystemExt};
 
 /// This function is the one that sends the kill signals to the processes
-/// It waits for a Config to be sent to it to start blocking,
-/// the first thing it does is to check if the config has changed
-pub fn killer(tx: Sender<Result<(), ()>>, rx: Receiver<Config>) {
+/// It waits for a Config to be sent to it to start blocking.
+///
+/// It runs on a while that
+/// * checks if you have run out of time **then**
+/// 1. Sees if config has changed
+/// 1. gets all running processes
+/// 1. kills those in the processes list of the running configuration
+/// 1. sleeps
+pub fn killer(tx: Sender<()>, rx: Receiver<Config>) {
     let mut config = rx.recv().unwrap();
     let init_time = Instant::now();
     while Instant::now().duration_since(init_time) < config.get_stretch() {
@@ -23,32 +29,10 @@ pub fn killer(tx: Sender<Result<(), ()>>, rx: Receiver<Config>) {
         s.processes()
             .iter()
             .filter(|(_, process)| config.processes.contains(process.name()))
-            .for_each(|(_, process)| {process.kill();});
+            .for_each(|(_, process)| {
+                process.kill();
+            });
         thread::sleep(Duration::from_secs(1));
     }
-    tx.send(Ok(())).unwrap();
+    tx.send(()).unwrap();
 }
-
-/*
-
-use std::process;
-
-pub fn kill() {
-    let s = System::new_all();
-    s.processes()
-        .iter()
-        .filter(|(_, proc)| proc.name() == "firefox-bin")
-        .for_each(|(_, proc)| {
-            proc.kill();
-        });
-}
-  s.processes()
-        .iter()
-        .filter(|(_, proc)| proc.uid == proc_self.uid)
-        .for_each(|(_, proc)| {
-            // proc.kill();
-            // println!("{:?}", proc.name());
-        });
-    println!("{:?}" ,s.users());
-
-*/

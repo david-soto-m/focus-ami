@@ -5,6 +5,7 @@ pub mod errors {
     pub static W_FILE: &str = "Couldn't write to config file";
     pub static ENCODING: &str = "Couldn't encode config to yaml";
     pub static DECODING: &str = "Couldn't decode config from yaml";
+    pub static WRONG_ARG: &str = "is not a valid argument.\n Help:\t focus -h";
 }
 
 pub mod config {

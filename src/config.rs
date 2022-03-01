@@ -27,7 +27,7 @@ impl Config {
     /// - if there is a bad yaml or if the default config results in a bad yaml
     /// - if access to the file is compromised anywhere in it's path.
     /// Lack of access to the config directory is distinguished from lack of access to the file
-    pub fn get_init_config() -> Config {
+    pub fn get_or_create(file: Option<String>) -> Config {
         let proj_dirs = ProjectDirs::from(
             config::PROJECT_INFO.0,
             config::PROJECT_INFO.1,
