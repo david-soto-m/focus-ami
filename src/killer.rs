@@ -19,12 +19,9 @@ pub fn killer(tx: Sender<()>, rx: Receiver<Config>) {
     let mut config = rx.recv().unwrap();
     let init_time = Instant::now();
     while Instant::now().duration_since(init_time) < config.get_stretch() {
-        match rx.try_recv() {
-            Ok(conf) => {
-                config = conf;
-            }
-            Err(_) => (),
-        };
+        if let Ok(conf) = rx.try_recv() {
+            config = conf
+        }
         let s = System::new_all();
         s.processes()
             .iter()
