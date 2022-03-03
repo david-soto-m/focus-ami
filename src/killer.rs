@@ -1,8 +1,8 @@
 // use std::thread;
 use crate::config::Config;
+use crate::consts::errors;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
-use std::time::Duration;
 use std::time::Instant;
 use sysinfo::{ProcessExt, System, SystemExt};
 
@@ -15,12 +15,18 @@ use sysinfo::{ProcessExt, System, SystemExt};
 /// 1. gets all running processes
 /// 1. kills those in the processes list of the running configuration
 /// 1. sleeps
-pub fn killer(tx: Sender<()>, rx: Receiver<Config>) {
-    let mut config = rx.recv().unwrap();
-    let init_time = Instant::now();
+pub fn killer(tx: Sender<()>, rx: Receiver<(Config, Option<Instant>)>) {
+    let (mut config, opts) = rx.recv().unwrap();
+    let mut init_time = match opts {
+        Some(now) => now,
+        None => panic!("{}", errors::COM),
+    };
     while Instant::now().duration_since(init_time) < config.get_stretch() {
-        if let Ok(conf) = rx.try_recv() {
-            config = conf
+        if let Ok((conf, time)) = rx.try_recv() {
+            config = conf;
+            if let Some(now) = time {
+                init_time = now;
+            }
         }
         let s = System::new_all();
         s.processes()
@@ -29,7 +35,7 @@ pub fn killer(tx: Sender<()>, rx: Receiver<Config>) {
             .for_each(|(_, process)| {
                 process.kill();
             });
-        thread::sleep(Duration::from_secs(1));
+        thread::sleep(config.get_interval());
     }
-    tx.send(()).unwrap();
+    tx.send(()).expect(errors::COM);
 }

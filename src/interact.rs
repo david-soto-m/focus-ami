@@ -1,72 +1,71 @@
 use crate::config::Config;
-use crate::consts::errors;
+use crate::consts::{errors, help};
+use std::collections::HashSet;
 use std::env;
-use std::io;
-use std::str::FromStr;
+use std::process;
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::Instant;
+use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};
+pub mod utils;
 
-// TODO
 fn help() {
-    println!("Not done yet");
+    println!("{}", help::HELP);
 }
 
 //TODO
-fn anotator() {
-    println!("Not done yet");
-    /*
-    use std::process;
-    // let s = System::new_all();
-    // let proc_self = s.process(Pid::from(process::id() as i32)).unwrap();
-
-      s.processes()
-            .iter()
-            .filter(|(_, proc)| proc.uid == proc_self.uid)
-            .for_each(|(_, proc)| {
-                // proc.kill();
-                // println!("{:?}", proc.name());
-            });
-        println!("{:?}" ,s.users());
-
-    */
-}
-
-pub fn create_config() -> Config {
-    println!("We are going to create a config for you");
-    println!("Whenever you are happy with the default type \\q");
-    println!("The first item is the period after which to kill processes.");
-    println!("number is interpreted as seconds");
-    println!("By default: 30 seconds || Max: 255 s || Min 1");
-    let interval = match get_item() {
-        Some(num) => {
-            if num > 0 {
-                num
+fn anotator(filter_users: bool) {
+    let s = System::new_all();
+    println!(
+        "This can help you find the process name of your applications
+This helper can fail in three ways
+1. Your user is not the one responsible for the process created
+2. The process was already started
+3, The process is an instance of something else running it eg: python3 applications"
+    );
+    let proc_self = s.process(Pid::from(process::id() as i32)).expect(errors::PROC);
+    if filter_users {
+        println!(
+            "We are selecting the user with uid {} form these\n{:?}",
+            proc_self.uid,
+            s.users()
+                .iter()
+                .map(|user| (user.name(), user.uid()))
+                .collect::<Vec<(&str, Uid)>>()
+        );
+    }
+    let mut a = HashSet::new();
+    s.processes()
+        .iter()
+        .filter(|(_, proc)| {
+            if filter_users {
+                proc.uid == proc_self.uid
             } else {
-                1
+                true
             }
-        }
-        None => 30,
-    };
-    println!("Now we are going to determine the minutes you want to focus");
-    println!("Keep in mind that you will have to wait for the whole period.");
-    println!("By default: 30 minutes || Max: 65535");
-    let stretch = get_item().unwrap_or(30);
-    println!("The next step is setting up a password.");
-    println!("This is not for security, but in order to be a nuisance");
-    println!("That way you may be discouraged to quit the second you get distracted");
-    println!("By default: a || Recommended : aslkdhgjhkadbchjqwmepam ionk");
-    let passwd = match get_item() {
-        Some(stri) => stri,
-        None => "a".to_string(),
-    };
-    println!("Finally we are going to set up the processes to be blocked");
-    println!("If you need help to get the name of a process please");
-    println!("1. When you only have unknown processes type \\q");
-    println!("2. Run \"focus -a\". Alternatively use ps -e (and diff?) to figure out the name of your process");
-    println!("3. Add it to your config during a normal run");
-    println!("To add a process type it and press enter");
-    println!("To stop adding processes just type \\q");
-    let processes = get_vec(get_item);
-    Config::new(interval, stretch, &passwd, processes)
+        })
+        .for_each(|(_, proc)| {
+            a.insert(proc.name());
+        });
+    println!(
+        "Please start the application you want to know the process name of and then press return"
+    );
+    utils::get_item::<String>();
+    println!("The possible candidates are: ");
+    System::new_all()
+        .processes()
+        .iter()
+        .filter(|(_, proc)| {
+            if filter_users {
+                proc.uid == proc_self.uid
+            } else {
+                true
+            }
+        })
+        .for_each(|(_, proc)| {
+            if !a.contains(proc.name()) {
+                println!("\t- {}", proc.name());
+            }
+        });
 }
 
 fn interpret_args() -> (Config, bool) {
@@ -76,19 +75,24 @@ fn interpret_args() -> (Config, bool) {
     let mut config = Config::get_or_create(None);
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "-f" | "F" | "f" | "-c" | "-C" | "c" => {
+            "-f" | "f" | "--file" => {
                 config = Config::get_or_create(args.next());
             }
-            "-s" | "s" | "S" => {
+            "-s" | "s" | "--silent" => {
                 interactive = false;
             }
-            "--help" | "help" | "-h" | "h" => {
+            "--help" | "-h" | "h" => {
                 help();
                 interactive = false;
                 config = Config::default();
             }
-            "-a" | "A" | "a" => {
-                anotator();
+            "-a" | "a" | "--annotator" => {
+                anotator(true);
+                interactive = false;
+                config = Config::default();
+            }
+            "-A" | "A" => {
+                anotator(false);
                 interactive = false;
                 config = Config::default();
             }
@@ -102,49 +106,18 @@ fn interpret_args() -> (Config, bool) {
     (config, interactive)
 }
 
-pub fn interact(tx: Sender<Config>, rx: Receiver<()>) {
-    let (init_config, _interactive) = interpret_args();
+/// the interaction loop
+pub fn interact(tx: Sender<(Config, Option<Instant>)>, rx: Receiver<()>) {
+    let (init_config, interactive) = interpret_args();
 
-    tx.send(init_config.clone()).unwrap();
-    println!("{:?}", init_config);
-
-    rx.recv().unwrap();
-    println!("\x07Finished");
-}
-
-/// Gets [anything that implements FromStr](https://doc.rust-lang.org/std/str/trait.FromStr.html)
-///
-///
-fn get_item<T>() -> Option<T>
-where
-    T: FromStr,
-{
-    loop {
-        let mut attempt = String::new();
-        io::stdin().read_line(&mut attempt).expect(errors::AQ);
-        match attempt.trim() {
-            "" | "\\q" => break None,
-            item => match item.parse::<T>() {
-                Ok(item) => break Some(item),
-                Err(_) => {
-                    println!("{},", errors::AQ);
-                    continue;
-                }
-            },
-        }
+    if interactive {
+        println!("Starting with config: {}", init_config);
     }
-}
-
-/// Runs the selected
-fn get_vec<T, U>(function: T) -> Vec<U>
-where
-    T: Fn() -> Option<U>,
-{
-    let mut vec: Vec<U> = Vec::new();
-    loop {
-        match function() {
-            Some(elem) => vec.push(elem),
-            None => break vec,
-        }
+    tx.send((init_config.clone(), Some(Instant::now())))
+        .expect(errors::COM);
+    // TODO interaction loop -> edit config, quit early, pause or snooze
+    rx.recv().expect(errors::COM);
+    if interactive {
+        println!("\x07Finished");
     }
 }
