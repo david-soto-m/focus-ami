@@ -5,15 +5,24 @@ pub mod errors {
     pub static W_FILE: &str = "Couldn't write to config file";
     pub static ENCODING: &str = "Couldn't encode config to yaml";
     pub static DECODING: &str = "Couldn't decode config from yaml";
-    pub static WRONG_ARG: &str = "is not a valid argument.\n Help:\t focus -h";
+    pub static ARG: &str = "is not a valid argument.\nHelp:\t focus -h";
     pub static AQ: &str = "Unable to read or parse appropriately";
     pub static COM: &str = "Comunication error in channels, probably due to a thread failure";
     pub static PROC: &str = "Existential horror, couldn't find self!!!";
+    pub static INTER: &str = "is not a valid interaction";
 }
 
 pub mod config {
     pub static FILENAME: &str = "config.yaml";
     pub static PROJECT_INFO: (&str, &str, &str) = ("org", "amisoft", "focus");
+    pub static CREATE_MESG: &str = "We are going to create a config for you
+Whenever you are happy with the default type \\q";
+    pub static EDIT_MESG: &str = "\t k: edit the time that passes between process killings
+\t w: edit the work time
+\t p: edit the password
+\t e: edit the processes
+\t c: check the config
+\t\\q: stop editing";
 }
 
 pub mod help {

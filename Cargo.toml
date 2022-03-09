@@ -9,6 +9,6 @@ description = "A command line tool to help focus"
 
 [dependencies]
 sysinfo = "^0"
-serde = {version = "1.0", features = ["derive"]}
+serde = {version = "^1", features = ["derive"]}
 serde_yaml = "^0"
-directories = "4.0.1"
+directories = "^4"
