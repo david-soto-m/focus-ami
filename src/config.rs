@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 mod interact;
 
@@ -15,20 +15,12 @@ pub struct Config {
     kill_time: u8,
     work_time: u16,
     password: String,
-    pub processes: HashSet<String>,
+    processes: HashSet<String>,
 }
 
 impl Config {
     /// Creates a new config from the parameters
-    pub fn new(kill_time: u8, work_time: u16, password: &str, processes: Vec<String>) -> Self {
-        Self {
-            kill_time,
-            work_time,
-            password: password.to_string(),
-            processes: HashSet::from_iter(processes),
-        }
-    }
-    fn new_internal(
+    pub fn new(
         kill_time: u8,
         work_time: u16,
         password: String,
@@ -45,9 +37,30 @@ impl Config {
     ///
     /// # Panics
     /// - if access to the file is compromised anywhere in it's path.
-    /// Lack of access to the config directory is distinguished from lack of access to the file
-    pub fn get_or_create(file: Option<String>) -> Config {
-        let filename = match file {
+    /// Lack of access to the config directory is distinguished from lack of
+    /// access to the file
+    pub fn get_or_create(file: Option<String>) -> (Config, PathBuf) {
+        let filename = Config::get_file(file);
+        if !filename.exists() {
+            Config::create().write_config(&filename);
+        }
+        (
+            Config::read_or_create_config(&filename).sanity_check(),
+            filename,
+        )
+    }
+    fn sanity_check(mut self) -> Self {
+        if self.kill_time < 1 {
+            self.kill_time = 1;
+        }
+        let cnst = u16::MAX - u8::MAX as u16;
+        if self.work_time > cnst {
+            self.work_time = cnst;
+        }
+        self
+    }
+    fn get_file(file: Option<String>) -> PathBuf {
+        match file {
             None => {
                 let proj_dirs = ProjectDirs::from(
                     config::PROJECT_INFO.0,
@@ -61,29 +74,38 @@ impl Config {
                 }
                 proj_conf_dirs.join(config::FILENAME)
             }
-            Some(file) => Path::new(".").join(file), // not clean but works, help here??
-        };
-        if !filename.exists() {
-            Config::write_config(&Config::create(), &filename);
-            // is this idiomatic??
+            Some(file) => {
+                let path = Path::new(&file).to_path_buf();
+                if !path.exists() {
+                    fs::create_dir_all(path.parent().expect(errors::DIRECTORY))
+                        .expect(errors::DIRECTORY);
+                }
+                path
+            }
         }
-        serde_yaml::from_str::<Config>(&fs::read_to_string(&filename).expect(errors::R_FILE))
+    }
+    fn read_or_create_config(filename: &Path) -> Config {
+        serde_yaml::from_str::<Config>(&fs::read_to_string(filename).expect(errors::R_FILE))
             .unwrap_or_else(|err| {
                 println!("{}", err);
                 let config = Config::create();
-                Config::write_config(&config, &filename);
+                Config::write_config(&config, filename);
                 config
             })
     }
-
-    /// returns a Duration from the work_time. It transforms from minutes to seconds
-    fn write_config(&self, filename: &Path) {
+    pub fn write_config(&self, filename: &Path) {
         fs::write(
             &(*filename),
             serde_yaml::to_string(&self).expect(errors::ENCODING),
         )
         .expect(errors::W_FILE);
     }
+    /// Returns true if process is in process list, otherwise it returns false.
+    pub fn contains(&self, proc: &str) -> bool {
+        self.processes.contains(proc)
+    }
+    /// returns a Duration from the work_time. It transforms from minutes to
+    /// seconds
     pub fn get_work_time(&self) -> Duration {
         Duration::from_secs(self.work_time as u64 /* 60*/)
     }
@@ -102,7 +124,6 @@ impl Config {
     pub fn edit(mut self) -> Config {
         // Consumes self
         utils::bar();
-        self.print_curr_state();
         println!("{}", config::EDIT_MESG);
         while let Some(a) = utils::get_item::<String>() {
             match a.as_str() {
@@ -115,18 +136,20 @@ impl Config {
                 "p" => {
                     self.password = interact::password(Some(&self.password));
                 }
-                "e" => {}
+                "e" => {
+                    self.processes = HashSet::from_iter(interact::processes(Some(self.processes)));
+                }
                 "c" => {
                     self.print_curr_state();
                 }
                 _ => {}
             }
-            println!("Select the next field to edit, please.");
+            println!("{}", config::NEXT);
         }
         self
     }
     pub fn remain(&self, beg: Instant) -> Config {
-        Config::new_internal(
+        Config::new(
             self.kill_time,
             self.work_time - Instant::now().duration_since(beg).as_secs()/*60*/ as u16,
             self.password.clone(),
@@ -134,7 +157,7 @@ impl Config {
         )
     }
     pub fn add_time(&self, time: u8) -> Config {
-        Config::new_internal(
+        Config::new(
             self.kill_time,
             self.work_time + time as u16,
             self.password.clone(),
@@ -148,8 +171,8 @@ impl Config {
         let kill_time = interact::kill_time(None);
         let work_time = interact::work_time(None);
         let passwd = interact::password(None);
-        let processes = interact::processes();
-        Config::new(kill_time, work_time, &passwd, processes)
+        let processes = interact::processes(None);
+        Config::new(kill_time, work_time, passwd, processes)
     }
 }
 

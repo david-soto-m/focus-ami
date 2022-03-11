@@ -1,8 +1,9 @@
 use crate::config::Config;
-use crate::consts::{errors, help};
+use crate::consts::{errors, help, interact};
 use crate::utils::GuessablePassword;
 use std::collections::HashSet;
 use std::env;
+use std::path::PathBuf;
 use std::process;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -13,6 +14,8 @@ pub mod config;
 pub mod consts;
 pub mod utils;
 
+/// The two types of communications are end or a config, This is an enum that
+/// reflects that reality
 pub enum Coms {
     Message(crate::config::Config, Option<Instant>),
     End,
@@ -24,14 +27,7 @@ fn help() {
 
 fn anotator(filter_users: bool) {
     let s = System::new_all();
-    println!(
-        "This can help you find the process name of your applications
-This helper can fail in three ways
-1. Your user is not the one responsible for the process created
-2. The process was already started
-3, The process is an instance of something else running it eg: python3
-applications"
-    );
+    println!("{}", interact::ANNOTATOR);
     let proc_self = s
         .process(Pid::from(process::id() as i32))
         .expect(errors::PROC);
@@ -58,12 +54,9 @@ applications"
         .for_each(|(_, proc)| {
             a.insert(proc.name());
         });
-    println!(
-        "Please start the application you want to know the process name of and then
-press return"
-    );
+    println!("{}", interact::START);
     utils::get_item::<String>();
-    println!("The possible candidates are: ");
+    println!("{}", interact::CAND);
     System::new_all()
         .processes()
         .iter()
@@ -81,15 +74,15 @@ press return"
         });
 }
 
-fn interpret_args() -> (Config, bool) {
+fn interpret_args() -> (Config, bool, PathBuf) {
     let mut args = env::args();
     args.next(); // ignore
     let mut interactive = true;
-    let mut config = Config::get_or_create(None);
+    let (mut config, mut path) = Config::get_or_create(None);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-f" | "f" | "--file" => {
-                config = Config::get_or_create(args.next());
+                (config, path) = Config::get_or_create(args.next());
             }
             "-s" | "s" | "--silent" => {
                 interactive = false;
@@ -116,27 +109,32 @@ fn interpret_args() -> (Config, bool) {
             }
         }
     }
-    (config, interactive)
+    (config, interactive, path)
 }
 
-/// the interaction loop
+/// # The interaction loop
+///
+/// It spawns another thread that is on the lookout for user input synchronously.
+/// Meanwhile this loop is checking if any of the threads (killer and
+/// synchronous input) have sent anything back.
+///
+/// When the killing loop send a unit type it means it has finished, and
+/// whenever this thread is free it should quit.
+///
+/// When the synchronous interaction returns a letter, it is processed and this
+/// thread asumes control over the interactions synchronously until it is
+/// finished. When it is finished, this thread spawns the next synchronous one
+///
+/// When in silent mode, it doesn't spawn the thread and it just waits for the
+/// killing thread to be done, synchronously,
 pub fn interact(tx: Sender<Coms>, rx: Receiver<()>) {
-    let (mut config, interactive) = interpret_args();
+    let (mut config, interactive, path) = interpret_args();
     let mut init_time = Instant::now();
     tx.send(Coms::Message(config.clone(), Some(init_time)))
         .expect(errors::COM);
     if interactive {
         config.print_curr_state();
-        println!(
-            "To start an interaction type the corresponding code, wait for up to one second
-Possible interactions are:
-\te: edit the config
-\tp: pause
-\tq: quit early
-\tr: see remaining time
-\ta: add some time to current run (but not to config)
-"
-        );
+        println!("{}", interact::INSTRUCTIONS);
         utils::bar();
         let (interuptor, interruptee) = mpsc::channel();
         let int = interuptor.clone();
@@ -149,29 +147,32 @@ Possible interactions are:
             if let Ok(string) = interruptee.try_recv() {
                 match string.trim() {
                     "e" => {
-                        if config.check_pass() {
+                        if config.check_pass(None) {
                             config = config.edit();
                             tx.send(Coms::Message(config.clone(), None))
                                 .expect(errors::COM);
                         }
                     }
                     "p" => {
-                        if config.check_pass() {
-                            config = config.remain(init_time);
-                            tx.send(Coms::Message(Config::new(1, u16::MAX, "", vec![]), None))
-                                .expect(errors::COM);
-                            println!("Paused, pulse return to continue");
+                        if config.check_pass(None) {
+                            let config_rem = config.remain(init_time);
+                            tx.send(Coms::Message(
+                                Config::new(1, u16::MAX, "".to_string(), HashSet::new()),
+                                None,
+                            ))
+                            .expect(errors::COM);
+                            println!("{}", interact::PAUSE);
                             utils::get_item::<String>();
                             init_time = Instant::now();
-                            tx.send(Coms::Message(config.clone(), Some(init_time)))
+                            tx.send(Coms::Message(config_rem, Some(init_time)))
                                 .expect(errors::COM);
-                            println!("Finished pause");
+                            println!("{}", interact::CONT);
                         }
                     }
                     "q" => {
-                        if config.check_pass() {
+                        if config.check_pass(None) {
                             println!(
-                                "It will take up to {} seconds",
+                                "It will take up to {} seconds, but wont kill any processes you might have running",
                                 config.get_kill_time_as_seconfs()
                             );
                             tx.send(Coms::Message(Config::default(), None))
@@ -179,14 +180,12 @@ Possible interactions are:
                         }
                     }
                     "r" => {
-                        println!(
-                            "{} minutes remaining",
-                            config.remain(init_time).get_work_time_as_min()
+                        println!("{} minutes remaining",
+                                config.remain(init_time).get_work_time_as_min()
                         );
                     }
                     "a" => {
-                        println!("How much time do you wish to add?");
-                        println!("Max: 255");
+                        println!("{}", interact::ADD);
                         if let Some(time) = utils::get_item() {
                             tx.send(Coms::Message(config.add_time(time), None))
                                 .expect(errors::COM);
@@ -204,18 +203,19 @@ Possible interactions are:
                 utils::bar();
             };
         }
-        println!("\x07Finished");
+        println!("{}", interact::FINNISH);
     } else {
         rx.recv().expect(errors::COM);
     }
-    tx.send(Coms::End).expect(errors::COM); // this has to be unique
+    tx.send(Coms::End).expect(errors::COM);
+    config.write_config(&path);
 }
 
 /// This function is the one that sends the kill signals to the processes
 /// It waits for a Config to be sent to it to start blocking.
 ///
 /// It runs on a while that
-/// * checks if you have run out of time **then**
+/// 1. checks if you have run out of time
 /// 1. Sees if config has changed
 /// 1. gets all running processes
 /// 1. kills those in the processes list of the running configuration
@@ -237,7 +237,7 @@ pub fn killer(tx: Sender<()>, rx: Receiver<Coms>) {
         let s = System::new_all();
         s.processes()
             .iter()
-            .filter(|(_, process)| config.processes.contains(process.name()))
+            .filter(|(_, process)| config.contains(process.name()))
             .for_each(|(_, process)| {
                 process.kill();
             });

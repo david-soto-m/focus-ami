@@ -1,4 +1,5 @@
 use crate::consts::errors;
+use std::collections::HashSet;
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::Sender;
@@ -26,6 +27,7 @@ where
 }
 
 /// Gets a vector that stops at a none parameter.
+/// It is append only.
 /// It must be provided with a closure (or function) that returns an option
 /// You can get such a thing from a function that returns error using
 /// ```rust
@@ -40,49 +42,57 @@ where
 /// ```
 pub fn get_vec<T, U>(function: T) -> Vec<U>
 where
-    T: Fn(&mut Vec<U>) -> Option<()>,
+    T: Fn(&mut Vec<U>) -> Option<U>,
 {
     let mut vec: Vec<U> = Vec::new();
     loop {
         match function(&mut vec) {
-            Some(_) =>{}
+            Some(item) => vec.push(item),
             None => break vec,
         }
     }
 }
 
-
-pub fn get_proc(vec: &mut Vec<String>)-> Option<()>{
+/// Adds or removes processes from the current processes HashSet
+/// It admits four types of interactions
+/// 1. `\q`: Stop adding processes
+/// 1. `\w`: See the processes list
+/// 1. `rm process name`: remove a process from the list
+/// 1. `process name`: add a process to the list
+pub fn get_proc(mut set: HashSet<String>) -> HashSet<String> {
     loop {
         let mut attempt = String::new();
         io::stdin().read_line(&mut attempt).expect(errors::AQ);
         match attempt.trim() {
-            "\\q" => break None,
+            "\\q" => break set,
+            "\\w" => println!("{:?}", set),
             item => match item.parse::<String>() {
-                Ok(item) =>{
+                Ok(item) => {
                     let inst: Vec<&str> = item.split_whitespace().collect();
-                    if inst.len() > 1{
-                        match inst[0]{
+                    if inst.len() > 1 {
+                        match inst[0] {
                             "rm" => {
+                                set.remove(&inst[1..].join(" "));
                             }
-                            a => vec.push(a.to_string()),
+                            _ => {
+                                set.insert(item.to_string());
+                            }
                         }
                     } else {
-                        vec.push(item);
+                        set.insert(item);
                     }
-                },
+                }
                 Err(_) => {
                     println!("{},", errors::AQ);
                     continue;
                 }
             },
-        }
+        };
     }
 }
 
-
-/// Non blocking string input
-/// send whatever is inputed
+/// Non blocking string input.
+/// It sends whatever is inputed and then dies.
 /// It can be "polled" with ```try_recv```
 pub fn async_string(tx: Sender<String>) {
     let mut attempt = String::new();
@@ -90,15 +100,22 @@ pub fn async_string(tx: Sender<String>) {
     tx.send(attempt).expect(errors::COM);
 }
 
+/// prints a 80 character wide string of -
 pub fn bar() {
     println!("--------------------------------------------------------------------------------");
 }
 
+/// The implementor of this trait has a field that can be guessed up to three times
 pub trait GuessablePassword {
+    /// The field must be accessible to the trait through this method.
     fn get_password(&self) -> String;
-    fn check_pass(&self) -> bool {
+    /// When called starts a series of interactions with the user that result
+    /// in a boolean
+    /// It returns `true` whenever the Password is guessed right and `false`
+    /// When it has been guessed wrongly three times
+    fn check_pass(&self, checks: Option<u8>) -> bool {
         let mut counter = 0;
-        let checks = 3;
+        let checks = checks.unwrap_or(3);
         while counter < checks {
             println!("Password: ({}/{})", counter + 1, checks);
             let pass: String = get_item().unwrap();
