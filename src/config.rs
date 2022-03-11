@@ -151,7 +151,7 @@ impl Config {
     pub fn remain(&self, beg: Instant) -> Config {
         Config::new(
             self.kill_time,
-            self.work_time - Instant::now().duration_since(beg).as_secs() as u16 * 60 ,
+            self.work_time - Instant::now().duration_since(beg).as_secs() as u16 / 60 ,
             self.password.clone(),
             self.processes.clone(),
         )
