@@ -107,7 +107,7 @@ impl Config {
     /// returns a Duration from the work_time. It transforms from minutes to
     /// seconds
     pub fn get_work_time(&self) -> Duration {
-        Duration::from_secs(self.work_time as u64 /* 60*/)
+        Duration::from_secs(self.work_time as u64 * 60)
     }
     pub fn get_work_time_as_min(&self) -> u16 {
         self.work_time
@@ -151,7 +151,7 @@ impl Config {
     pub fn remain(&self, beg: Instant) -> Config {
         Config::new(
             self.kill_time,
-            self.work_time - Instant::now().duration_since(beg).as_secs()/*60*/ as u16,
+            self.work_time - Instant::now().duration_since(beg).as_secs() as u16 * 60 ,
             self.password.clone(),
             self.processes.clone(),
         )
