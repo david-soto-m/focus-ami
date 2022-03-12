@@ -1,6 +1,0 @@
----
-kill_time: 30
-work_time: 30
-password: a
-processes:
-  - vlc.bin
