@@ -1,6 +1,5 @@
-use crate::consts::{config, errors};
 use crate::utils;
-use crate::utils::GuessablePassword;
+use crate::utils::{config, errors, GuessablePassword};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -39,8 +38,29 @@ impl Config {
     /// - if access to the file is compromised anywhere in it's path.
     /// Lack of access to the config directory is distinguished from lack of
     /// access to the file
-    pub fn get_or_create(file: Option<String>) -> (Config, PathBuf) {
-        let filename = Config::get_file(file);
+    pub fn get_or_create(file: Option<PathBuf>) -> (Config, PathBuf) {
+        let filename = match file {
+            None => {
+                let proj_dirs = ProjectDirs::from(
+                    config::PROJECT_INFO.0,
+                    config::PROJECT_INFO.1,
+                    config::PROJECT_INFO.2,
+                )
+                .expect(errors::PROJECT);
+                let proj_conf_dirs = proj_dirs.config_dir();
+                if !proj_conf_dirs.exists() {
+                    fs::create_dir_all(proj_conf_dirs).expect(errors::DIRECTORY);
+                }
+                proj_conf_dirs.join(config::FILENAME)
+            }
+            Some(path) => {
+                if !path.exists() {
+                    fs::create_dir_all(path.parent().expect(errors::DIRECTORY))
+                        .expect(errors::DIRECTORY);
+                }
+                path
+            }
+        };
         if !filename.exists() {
             Config::create().write_config(&filename);
         }
@@ -58,31 +78,6 @@ impl Config {
             self.work_time = cnst;
         }
         self
-    }
-    fn get_file(file: Option<String>) -> PathBuf {
-        match file {
-            None => {
-                let proj_dirs = ProjectDirs::from(
-                    config::PROJECT_INFO.0,
-                    config::PROJECT_INFO.1,
-                    config::PROJECT_INFO.2,
-                )
-                .expect(errors::PROJECT);
-                let proj_conf_dirs = proj_dirs.config_dir();
-                if !proj_conf_dirs.exists() {
-                    fs::create_dir_all(proj_conf_dirs).expect(errors::DIRECTORY);
-                }
-                proj_conf_dirs.join(config::FILENAME)
-            }
-            Some(file) => {
-                let path = Path::new(&file).to_path_buf();
-                if !path.exists() {
-                    fs::create_dir_all(path.parent().expect(errors::DIRECTORY))
-                        .expect(errors::DIRECTORY);
-                }
-                path
-            }
-        }
     }
     fn read_or_create_config(filename: &Path) -> Config {
         serde_yaml::from_str::<Config>(&fs::read_to_string(filename).expect(errors::R_FILE))
@@ -151,7 +146,7 @@ impl Config {
     pub fn remain(&self, beg: Instant) -> Config {
         Config::new(
             self.kill_time,
-            self.work_time - Instant::now().duration_since(beg).as_secs() as u16 / 60 ,
+            self.work_time - Instant::now().duration_since(beg).as_secs() as u16 / 60,
             self.password.clone(),
             self.processes.clone(),
         )

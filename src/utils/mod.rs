@@ -1,8 +1,11 @@
-use crate::consts::errors;
 use std::collections::HashSet;
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::Sender;
+pub mod consts;
+
+// Ascend
+pub use consts::{config, errors, interact};
 
 /// Gets [anything that implements FromStr](https://doc.rust-lang.org/std/str/trait.FromStr.html)
 /// or q
@@ -22,33 +25,6 @@ where
                     continue;
                 }
             },
-        }
-    }
-}
-
-/// Gets a vector that stops at a none parameter.
-/// It is append only.
-/// It must be provided with a closure (or function) that returns an option
-/// You can get such a thing from a function that returns error using
-/// ```rust
-/// # use focus::interact::get_vec;
-/// # fn returns_error()->Result< (), () >{
-/// #     Err(())
-/// # }
-/// # let a =
-/// get_vec(||{returns_error().ok()})
-/// # ;
-/// # assert_eq!(a.len(), 0);
-/// ```
-pub fn get_vec<T, U>(function: T) -> Vec<U>
-where
-    T: Fn(&mut Vec<U>) -> Option<U>,
-{
-    let mut vec: Vec<U> = Vec::new();
-    loop {
-        match function(&mut vec) {
-            Some(item) => vec.push(item),
-            None => break vec,
         }
     }
 }
