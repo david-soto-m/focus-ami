@@ -1,115 +1,21 @@
 use crate::config::Config;
-use crate::consts::{errors, help, interact};
-use crate::utils::GuessablePassword;
+use crate::utils::{errors, interact, GuessablePassword};
 use std::collections::HashSet;
-use std::env;
-use std::path::PathBuf;
-use std::process;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
-use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};
-pub mod config;
-pub mod consts;
-pub mod utils;
+use sysinfo::{ProcessExt, System, SystemExt};
+mod cli;
+mod config;
+mod utils;
+mod annotator;
 
 /// The two types of communications are end or a config, This is an enum that
 /// reflects that reality
 pub enum Coms {
     Message(crate::config::Config, Option<Instant>),
     End,
-}
-
-fn help() {
-    println!("{}", help::HELP);
-}
-
-fn anotator(filter_users: bool) {
-    let s = System::new_all();
-    println!("{}", interact::ANNOTATOR);
-    let proc_self = s
-        .process(Pid::from(process::id() as i32))
-        .expect(errors::PROC);
-    if filter_users {
-        println!(
-            "We are selecting the user with uid {} form these\n{:?}",
-            proc_self.uid,
-            s.users()
-                .iter()
-                .map(|user| (user.name(), user.uid()))
-                .collect::<Vec<(&str, Uid)>>()
-        );
-    }
-    let mut a = HashSet::new();
-    s.processes()
-        .iter()
-        .filter(|(_, proc)| {
-            if filter_users {
-                proc.uid == proc_self.uid
-            } else {
-                true
-            }
-        })
-        .for_each(|(_, proc)| {
-            a.insert(proc.name());
-        });
-    println!("{}", interact::START);
-    utils::get_item::<String>();
-    println!("{}", interact::CAND);
-    System::new_all()
-        .processes()
-        .iter()
-        .filter(|(_, proc)| {
-            if filter_users {
-                proc.uid == proc_self.uid
-            } else {
-                true
-            }
-        })
-        .for_each(|(_, proc)| {
-            if !a.contains(proc.name()) {
-                println!("\t- {}", proc.name());
-            }
-        });
-}
-
-fn interpret_args() -> (Config, bool, PathBuf) {
-    let mut args = env::args();
-    args.next(); // ignore
-    let mut interactive = true;
-    let (mut config, mut path) = Config::get_or_create(None);
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "-f" | "f" | "--file" => {
-                (config, path) = Config::get_or_create(args.next());
-            }
-            "-s" | "s" | "--silent" => {
-                interactive = false;
-            }
-            "--help" | "-h" | "h" => {
-                help();
-                interactive = false;
-                config = Config::default();
-            }
-            "-a" | "a" | "--annotator" => {
-                anotator(true);
-                interactive = false;
-                config = Config::default();
-            }
-            "-A" | "A" => {
-                anotator(false);
-                interactive = false;
-                config = Config::default();
-            }
-            x => {
-                println!("{} {}", x, errors::ARG);
-                interactive = false;
-                config = Config::default();
-            }
-        }
-    }
-    (config, interactive, path)
 }
 
 /// # The interaction loop
@@ -128,7 +34,7 @@ fn interpret_args() -> (Config, bool, PathBuf) {
 /// When in silent mode, it doesn't spawn the thread and it just waits for the
 /// killing thread to be done, synchronously,
 pub fn interact(tx: Sender<Coms>, rx: Receiver<()>) {
-    let (mut config, interactive, path) = interpret_args();
+    let (mut config, interactive, path) = cli::interpret_args();
     let mut init_time = Instant::now();
     tx.send(Coms::Message(config.clone(), Some(init_time)))
         .expect(errors::COM);
@@ -180,8 +86,9 @@ pub fn interact(tx: Sender<Coms>, rx: Receiver<()>) {
                         }
                     }
                     "r" => {
-                        println!("{} minutes remaining",
-                                config.remain(init_time).get_work_time_as_min()
+                        println!(
+                            "{} minutes remaining",
+                            config.remain(init_time).get_work_time_as_min()
                         );
                     }
                     "a" => {
