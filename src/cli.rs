@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::path::PathBuf;
 use crate::Config;
-use crate::anotator;
+use crate::annotator;
 
 #[derive(Parser)]
 #[clap(version, about)]
@@ -28,7 +28,7 @@ pub fn interpret_args() -> (Config, bool, PathBuf) {
     (config, path) = Config::get_or_create(cli.config);
     if cli.anotate | cli.anotate_no_user {
         config = Config::default();
-        anotator::anotator(!cli.anotate_no_user);
+        annotator::annotator(!cli.anotate_no_user);
     }
     (config, interactive, path)
 }

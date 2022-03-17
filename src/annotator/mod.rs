@@ -4,7 +4,7 @@ use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};
 use std::collections::HashSet;
 use crate::utils;
 
-pub fn anotator(filter_users: bool) {
+pub fn annotator(filter_users: bool) {
     let s = System::new_all();
     println!("{}", interact::ANNOTATOR);
     let proc_self = s

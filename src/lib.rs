@@ -9,7 +9,7 @@ use sysinfo::{ProcessExt, System, SystemExt};
 mod cli;
 mod config;
 mod utils;
-mod anotator;
+mod annotator;
 
 /// The two types of communications are end or a config, This is an enum that
 /// reflects that reality
