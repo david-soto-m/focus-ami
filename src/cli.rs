@@ -1,7 +1,7 @@
+use crate::annotator;
+use crate::Config;
 use clap::Parser;
 use std::path::PathBuf;
-use crate::Config;
-use crate::annotator;
 
 #[derive(Parser)]
 #[clap(version, about)]
@@ -21,14 +21,22 @@ pub struct Cli {
     pub anotate_no_user: bool,
 }
 
-pub fn interpret_args() -> (Config, bool, PathBuf) {
+pub enum InteractType {
+    NormalRun,
+    SilentRun,
+}
+
+pub fn interpret_args() -> (Config, InteractType, PathBuf) {
     let cli = Cli::parse();
-    let interactive = !cli.silent;
-    let (mut config, path);
-    (config, path) = Config::get_or_create(cli.config);
     if cli.anotate | cli.anotate_no_user {
-        config = Config::default();
         annotator::annotator(!cli.anotate_no_user);
+        (Config::default(), InteractType::NormalRun, PathBuf::new())
+    } else {
+        let (config, path) = Config::get_or_create(cli.config);
+        let interactive = match cli.silent {
+            true => InteractType::SilentRun,
+            false => InteractType::NormalRun,
+        };
+        (config, interactive, path)
     }
-    (config, interactive, path)
 }
