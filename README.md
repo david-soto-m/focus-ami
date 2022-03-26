@@ -45,7 +45,7 @@ sense when you want to run once the killing part, and then quit.
 
 Run the program like this:
 
-`focus -a`
+`focus-ami -a`
 
 Then start your application. This can fail in three ways.
 
@@ -56,7 +56,7 @@ applications.
 
 The first way can be circumvented by not running the user check using
 
-`focus -A`
+`focus-ami -A`
 
 If that doesn't work in KDE systems `control-esc` might help you with the
 system activity tool. Probably other DEs have some similar tools, such as the
