@@ -15,10 +15,10 @@ pub struct Cli {
     pub silent: bool,
     /// Annotator mode, a guide to find processes names
     #[clap(short, long)]
-    pub anotate: bool,
+    pub annotate: bool,
     /// Annotator mode, a guide to find processes names, without filtering for user
     #[clap(long)]
-    pub anotate_no_user: bool,
+    pub annotate_no_user: bool,
 }
 
 pub enum InteractType {
@@ -28,8 +28,8 @@ pub enum InteractType {
 
 pub fn interpret_args() -> (Config, InteractType, PathBuf) {
     let cli = Cli::parse();
-    if cli.anotate | cli.anotate_no_user {
-        annotator::annotator(!cli.anotate_no_user);
+    if cli.annotate | cli.annotate_no_user {
+        annotator::annotator(!cli.annotate_no_user);
         (Config::default(), InteractType::NormalRun, PathBuf::new())
     } else {
         let (config, path) = Config::get_or_create(cli.config);

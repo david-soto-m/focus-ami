@@ -56,7 +56,7 @@ applications.
 
 The first way can be circumvented by not running the user check using
 
-`focus-ami -A`
+`focus-ami --annotate-no-user`
 
 If that doesn't work in KDE systems `control-esc` might help you with the
 system activity tool. Probably other DEs have some similar tools, such as the
@@ -83,16 +83,15 @@ USAGE:
     focus-ami [OPTIONS]
 
 OPTIONS:
-    -a, --anotate            Annotator mode, a guide to find processes names
-        --anotate-no-user    Annotator mode, a guide to find processes names,
-without filtering for
-                             user
-    -c, --config <CONFIG>    Use the configuration from <CONFIG>. <CONFIG> is a
-path starting from
-                             your current working directory
-    -h, --help               Print help information
-    -s, --silent             Disallow interactions during the focus period
-    -V, --version            Print version information
+-a, --annotate            Annotator mode, a guide to find processes names
+    --annotate-no-user    Annotator mode, a guide to find processes names, without filtering for
+                          user
+-c, --config <CONFIG>     Use the configuration from <CONFIG>. <CONFIG> is a path starting from
+                          your current working directory
+-h, --help                Print help information
+-s, --silent              Disallow interactions during the focus period
+-V, --version             Print version information
+
 ```
 
 
