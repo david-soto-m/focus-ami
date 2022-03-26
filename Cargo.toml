@@ -1,6 +1,6 @@
 [package]
 name = "focus-ami"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 license = "Unlicense"
 description = "A command line tool to help focus by killing processes"
