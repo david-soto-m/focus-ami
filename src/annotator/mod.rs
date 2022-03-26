@@ -1,8 +1,8 @@
-use std::process;
-use crate::utils::{interact, errors};
-use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};
-use std::collections::HashSet;
 use crate::utils;
+use crate::utils::{errors, interact};
+use std::collections::HashSet;
+use std::process;
+use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};
 
 pub fn annotator(filter_users: bool) {
     let s = System::new_all();
@@ -52,4 +52,3 @@ pub fn annotator(filter_users: bool) {
             }
         });
 }
-

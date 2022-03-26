@@ -33,10 +33,12 @@ By default: {} || Max: {}",
         value, max_work_time
     );
     let a = utils::get_item().unwrap_or(value);
-    if a <= max_work_time {
+    if a <= max_work_time && a >= 1 {
         a
-    } else {
+    } else if a > max_work_time {
         max_work_time
+    } else {
+        1
     }
 }
 

@@ -2,10 +2,16 @@ use std::collections::HashSet;
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::Sender;
+use std::time::Instant;
 pub mod consts;
 
 // Ascend
 pub use consts::{config, errors, interact};
+
+pub enum Coms {
+    Message(crate::config::Config, Option<Instant>),
+    End,
+}
 
 /// Gets [anything that implements FromStr](https://doc.rust-lang.org/std/str/trait.FromStr.html)
 /// or q
