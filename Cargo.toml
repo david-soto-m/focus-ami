@@ -1,15 +1,18 @@
 [package]
 name = "focus-ami"
-version = "0.0.5"
+version = "0.0.6"
 edition = "2021"
 license = "Unlicense"
+repository = "https://github.com/david-soto-m/focus-ami"
+categories = ["command-line-utilities"]
+keywords = ["productivity", "focus", "command-line-tool"]
 description = "A command line tool to help focus by killing processes"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sysinfo = "^0"
-serde = {version = "^1", features = ["derive"]}
-serde_yaml = "^0"
-directories = "^4"
-clap = { version = "^3", features = ["derive"] }
+sysinfo = "^0.23"
+serde = {version = "^1.0", features = ["derive"]}
+serde_yaml = "^0.4"
+directories = "^4.0"
+clap = { version = "^3.1", features = ["derive"] }
