@@ -1,6 +1,5 @@
 use crate::config::Config;
-use crate::utils;
-use crate::utils::{errors, interact, Coms, GuessablePassword};
+use crate::utils::{self, errors, interact, Coms, GuessablePassword};
 use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 use std::time::Instant;

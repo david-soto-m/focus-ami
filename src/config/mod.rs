@@ -1,5 +1,4 @@
-use crate::utils;
-use crate::utils::{config, errors, GuessablePassword};
+use crate::utils::{self, config, errors, GuessablePassword};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

@@ -1,5 +1,4 @@
-use crate::utils;
-use crate::utils::{errors, interact};
+use crate::utils::{self, errors, interact};
 use std::collections::HashSet;
 use std::process;
 use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};

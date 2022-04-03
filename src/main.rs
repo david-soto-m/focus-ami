@@ -1,9 +1,7 @@
-use focus_ami::cli;
-use focus_ami::cli::InteractType;
+use focus_ami::cli::{self, InteractType};
 use focus_ami::config::Config;
 use focus_ami::inter;
-use focus_ami::utils;
-use focus_ami::utils::{errors, interact, Coms};
+use focus_ami::utils::{self, errors, interact, Coms};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
