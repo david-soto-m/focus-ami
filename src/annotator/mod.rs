@@ -3,20 +3,29 @@ use std::collections::HashSet;
 use std::process;
 use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};
 
-pub fn annotator(filter_users: bool) {
+pub fn annotator(mut filter_users: bool) {
     let s = System::new_all();
     println!("{}", interact::ANNOTATOR);
     let proc_self = s
         .process(Pid::from(process::id() as i32))
         .expect(errors::PROC);
+    let user_id = proc_self.user_id();
+    if filter_users && user_id.is_none() {
+        println!("Disabling filter because no user id could be established");
+        filter_users = false;
+    };
     if filter_users {
         println!(
-            "We are selecting the user with uid {} form these\n{:?}",
-            proc_self.uid,
+            "We are selecting the user {} with {:?} form these\n{:?}",
+            match s.get_user_by_id(user_id.unwrap()) {
+                Some(user) => user.name(),
+                None => "with unknown name and",
+            },
+            user_id.unwrap(), //is checked to be some beforehand
             s.users()
                 .iter()
-                .map(|user| (user.name(), user.uid()))
-                .collect::<Vec<(&str, Uid)>>()
+                .map(|user| (user.name(), user.id()))
+                .collect::<Vec<(&str, &Uid)>>()
         );
     }
     let mut a = HashSet::new();
@@ -24,7 +33,7 @@ pub fn annotator(filter_users: bool) {
         .iter()
         .filter(|(_, proc)| {
             if filter_users {
-                proc.uid == proc_self.uid
+                user_id == proc.user_id()
             } else {
                 true
             }
@@ -40,7 +49,7 @@ pub fn annotator(filter_users: bool) {
         .iter()
         .filter(|(_, proc)| {
             if filter_users {
-                proc.uid == proc_self.uid
+                user_id == proc.user_id()
             } else {
                 true
             }
