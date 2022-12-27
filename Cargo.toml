@@ -1,6 +1,6 @@
 [package]
 name = "focus-ami"
-version = "0.0.9"
+version = "0.1.0"
 edition = "2021"
 license = "Unlicense"
 repository = "https://github.com/david-soto-m/focus-ami"
