@@ -7,7 +7,7 @@ pub fn annotator(mut filter_users: bool) {
     let s = System::new_all();
     println!("{}", interact::ANNOTATOR);
     let proc_self = s
-        .process(Pid::from(process::id() as i32))
+        .process(Pid::from(process::id() as usize))
         .expect(errors::PROC);
     let user_id = proc_self.user_id();
     if filter_users && user_id.is_none() {

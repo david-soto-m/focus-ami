@@ -6,7 +6,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[clap(version, about)]
 pub struct Cli {
-    #[clap(long, short, parse(from_os_str))]
+    #[clap(long, short)]
     /// Use the configuration from <CONFIG>. <CONFIG> is a path starting from
     /// your current working directory
     pub config: Option<PathBuf>,
