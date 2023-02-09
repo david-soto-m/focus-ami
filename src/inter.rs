@@ -5,8 +5,8 @@ use std::sync::mpsc::Sender;
 use std::time::Instant;
 
 pub fn interact(
-    string: String,
-    tx: Sender<Coms>,
+    string: &str,
+    tx: &Sender<Coms>,
     mut config: Config,
     mut init_time: Instant,
 ) -> (Config, Instant) {
@@ -22,7 +22,7 @@ pub fn interact(
             if config.check_pass(None) {
                 let config_rem = config.remain(init_time);
                 tx.send(Coms::Message(
-                    Config::new(1, u16::MAX, "".to_string(), HashSet::new()),
+                    Config::new(1, u16::MAX, String::new(), HashSet::new()),
                     None,
                 ))
                 .expect(errors::COM);

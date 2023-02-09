@@ -33,9 +33,10 @@ pub fn interpret_args() -> (Config, InteractType, PathBuf) {
         (Config::default(), InteractType::NormalRun, PathBuf::new())
     } else {
         let (config, path) = Config::get_or_create(cli.config);
-        let interactive = match cli.silent {
-            true => InteractType::SilentRun,
-            false => InteractType::NormalRun,
+        let interactive = if cli.silent {
+            InteractType::SilentRun
+        } else {
+            InteractType::NormalRun
         };
         (config, interactive, path)
     }

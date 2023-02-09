@@ -72,7 +72,7 @@ impl Config {
         if self.kill_time < 1 {
             self.kill_time = 1;
         }
-        let cnst = u16::MAX - u8::MAX as u16;
+        let cnst = u16::MAX - u16::from(u8::MAX);
         if self.work_time > cnst {
             self.work_time = cnst;
         }
@@ -81,7 +81,7 @@ impl Config {
     fn read_or_create_config(filename: &Path) -> Config {
         serde_yaml::from_str::<Config>(&fs::read_to_string(filename).expect(errors::R_FILE))
             .unwrap_or_else(|err| {
-                println!("{}", err);
+                println!("{err}");
                 let config = Config::create();
                 Config::write_config(&config, filename);
                 config
@@ -89,7 +89,7 @@ impl Config {
     }
     pub fn write_config(&self, filename: &Path) {
         fs::write(
-            &(*filename),
+            filename,
             serde_yaml::to_string(&self).expect(errors::ENCODING),
         )
         .expect(errors::W_FILE);
@@ -98,22 +98,22 @@ impl Config {
     pub fn contains(&self, proc: &str) -> bool {
         self.processes.contains(proc)
     }
-    /// returns a Duration from the work_time. It transforms from minutes to
+    /// returns a Duration from the `work_time`. It transforms from minutes to
     /// seconds
     pub fn get_work_time(&self) -> Duration {
-        Duration::from_secs(self.work_time as u64 * 60)
+        Duration::from_secs(u64::from(self.work_time) * 60)
     }
     pub fn get_work_time_as_min(&self) -> u16 {
         self.work_time
     }
     pub fn get_kill_time(&self) -> Duration {
-        Duration::from_secs(self.kill_time as u64)
+        Duration::from_secs(u64::from(self.kill_time))
     }
     pub fn get_kill_time_as_seconfs(&self) -> u8 {
         self.kill_time
     }
     pub fn print_curr_state(&self) {
-        println!("Your config is :{}", self);
+        println!("Your config is :{self}");
     }
     pub fn edit(mut self) -> Config {
         // Consumes self
@@ -153,7 +153,7 @@ impl Config {
     pub fn add_time(&self, time: u8) -> Config {
         Config::new(
             self.kill_time,
-            self.work_time + time as u16,
+            self.work_time + u16::from(time),
             self.password.clone(),
             self.processes.clone(),
         )

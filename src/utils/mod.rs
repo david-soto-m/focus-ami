@@ -13,7 +13,7 @@ pub enum Coms {
     End,
 }
 
-/// Gets [anything that implements FromStr](https://doc.rust-lang.org/std/str/trait.FromStr.html)
+/// Gets [anything that implements `FromStr`](https://doc.rust-lang.org/std/str/trait.FromStr.html)
 /// or q
 pub fn get_item<T>() -> Option<T>
 where
@@ -24,18 +24,15 @@ where
         io::stdin().read_line(&mut attempt).expect(errors::AQ);
         match attempt.trim() {
             "\\q" => break None,
-            item => match item.parse::<T>() {
-                Ok(item) => break Some(item),
-                Err(_) => {
-                    println!("{},", errors::AQ);
-                    continue;
-                }
+            item =>if let Ok(it)= item.parse::<T>() {
+                break Some(it);
             },
-        }
+        };
+        println!("{},", errors::AQ);
     }
 }
 
-/// Adds or removes processes from the current processes HashSet
+/// Adds or removes processes from the current processes `HashSet`
 /// It admits four types of interactions
 /// 1. `\q`: Stop adding processes
 /// 1. `\w`: See the processes list
@@ -47,9 +44,8 @@ pub fn get_proc(mut set: HashSet<String>) -> HashSet<String> {
         io::stdin().read_line(&mut attempt).expect(errors::AQ);
         match attempt.trim() {
             "\\q" => break set,
-            "\\w" => println!("{:?}", set),
-            item => match item.parse::<String>() {
-                Ok(item) => {
+            "\\w" => println!("{set:?}"),
+            item => {if let Ok(item) = item.parse::<String>() {
                     let inst: Vec<&str> = item.split_whitespace().collect();
                     if inst.len() > 1 {
                         match inst[0] {
@@ -63,8 +59,7 @@ pub fn get_proc(mut set: HashSet<String>) -> HashSet<String> {
                     } else {
                         set.insert(item);
                     }
-                }
-                Err(_) => {
+                } else {
                     println!("{},", errors::AQ);
                     continue;
                 }
@@ -76,7 +71,7 @@ pub fn get_proc(mut set: HashSet<String>) -> HashSet<String> {
 /// Non blocking string input.
 /// It sends whatever is inputed and then dies.
 /// It can be "polled" with ```try_recv```
-pub fn async_string(tx: Sender<String>) {
+pub fn async_string(tx: &Sender<String>) {
     let mut attempt = String::new();
     io::stdin().read_line(&mut attempt).expect(errors::AQ);
     tx.send(attempt).expect(errors::COM);

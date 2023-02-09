@@ -15,7 +15,7 @@ fn main() {
     let (tx, rx_to_killer) = mpsc::channel();
     let (tx_from_killer, rx) = mpsc::channel();
     let killer_handle = thread::spawn(move || {
-        focus_ami::killer(tx_from_killer, rx_to_killer);
+        focus_ami::killer(&tx_from_killer, &rx_to_killer);
     });
     let mut init_time = Instant::now();
     tx.send(Coms::Message(config.clone(), Some(init_time)))
@@ -28,17 +28,17 @@ fn main() {
             let (interuptor, interruptee) = mpsc::channel();
             let int = interuptor.clone();
             thread::spawn(move || {
-                utils::async_string(int);
+                utils::async_string(&int);
             });
             //I don't really care what happens to it, only if it produces a value
             while rx.try_recv().is_err() {
                 thread::sleep(Duration::from_millis(500));
                 if let Ok(string) = interruptee.try_recv() {
-                    (config, init_time) = inter::interact(string, tx.clone(), config, init_time);
+                    (config, init_time) = inter::interact(&string, &tx.clone(), config, init_time);
                     // handle the petition, then spawn another
                     let int = interuptor.clone();
                     thread::spawn(move || {
-                        utils::async_string(int);
+                        utils::async_string(&int);
                     });
                     utils::bar();
                 };

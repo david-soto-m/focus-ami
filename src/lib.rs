@@ -19,7 +19,9 @@ pub mod utils;
 /// 1. gets all running processes
 /// 1. kills those in the processes list of the running configuration
 /// 1. sleeps
-pub fn killer(tx: Sender<()>, rx: Receiver<Coms>) {
+/// # Panics
+/// When there are communication errors between threads
+pub fn killer(tx: &Sender<()>, rx: &Receiver<Coms>) {
     let (mut config, mut init_time);
     if let Coms::Message(conf, Some(time)) = rx.recv().expect(errors::COM) {
         (config, init_time) = (conf, time);

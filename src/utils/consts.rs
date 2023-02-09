@@ -34,7 +34,8 @@ Possible interactions are:
 \tp: pause
 \tq: quit early
 \tr: see remaining time
-\ta: add some time to current run (but not to configuration)
+\ta: add some time to current run (but not to configuration, you won't be
+\t   able to check with `r`)
 ";
     pub static ANNOTATOR: &str = "This can help you find the process name of your applications
 This helper can fail in three ways
