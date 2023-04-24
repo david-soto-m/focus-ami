@@ -16,3 +16,5 @@ serde = {version = "^1.0", features = ["derive"]}
 serde_yaml = "^0.9"
 directories = "^4.0"
 clap = { version = "^4.0", features = ["derive"] }
+dialoguer = { version = "^0.10", features = ["fuzzy-select", "history", "completion"]}
+console = "0.15.5"

@@ -5,6 +5,8 @@ A command line tool to kill processes.
 Its purpose is to focus for a given period of time, blocking all distracting
 apps specified.
 
+# ***This project is undergoing maintenance***
+
 ## Configuration
 
 The first time running the program, you will be asked to create a configuration

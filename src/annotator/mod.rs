@@ -1,14 +1,11 @@
-use crate::utils::{self, errors, interact};
 use std::collections::HashSet;
 use std::process;
 use sysinfo::{Pid, ProcessExt, System, SystemExt, Uid, UserExt};
 
 pub fn annotator(mut filter_users: bool) {
     let s = System::new_all();
-    println!("{}", interact::ANNOTATOR);
     let proc_self = s
-        .process(Pid::from(process::id() as usize))
-        .expect(errors::PROC);
+        .process(Pid::from(process::id() as usize)).unwrap();
     let user_id = proc_self.user_id();
     if filter_users && user_id.is_none() {
         println!("Disabling filter because no user id could be established");
@@ -16,7 +13,7 @@ pub fn annotator(mut filter_users: bool) {
     };
     if filter_users {
         println!(
-            "We are selecting the user {} with {:?} form these\n{:?}",
+            "We are selecting the user {} with {:?} from these\n{:?}",
             match s.get_user_by_id(user_id.unwrap()) {
                 Some(user) => user.name(),
                 None => "with unknown name and",
@@ -41,9 +38,9 @@ pub fn annotator(mut filter_users: bool) {
         .for_each(|(_, proc)| {
             a.insert(proc.name());
         });
-    println!("{}", interact::START);
-    utils::get_item::<String>();
-    println!("{}", interact::CAND);
+    // println!("{}", interact::START);
+    // utils::get_item::<String>();
+    // println!("{}", interact::CAND);
     System::new_all()
         .processes()
         .iter()

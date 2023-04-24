@@ -1,55 +1,47 @@
-use focus_ami::cli::{self, InteractType};
-use focus_ami::config::Config;
-use focus_ami::inter;
-use focus_ami::utils::{self, errors, interact, Coms};
-use std::sync::mpsc;
-use std::thread;
-use std::time::{Duration, Instant};
+use directories::ProjectDirs;
+use std::{sync::mpsc, thread, time::Duration};
+
+mod annotator;
+mod cli_args;
+mod comms;
+mod config;
+mod killer;
+mod user;
+use comms::MainToFromThreads;
 
 fn main() {
-    let (mut config, interactive, path) = cli::interpret_args();
-    // if you are in annotator mode, do nothing
-    if config == Config::default() {
-        return;
-    }
-    let (tx, rx_to_killer) = mpsc::channel();
-    let (tx_from_killer, rx) = mpsc::channel();
+    let proj_dirs = ProjectDirs::from("org", "amisoft", "focus-ami").unwrap();
+    // Get the arguments and maybe check out if in annotation mode
+    let Some(arg_info) = cli_args::interpret_args(&proj_dirs) else{ return };
+    // main <-> killer
+    let (tx_m2k, rx_m2k) = mpsc::channel();
+    let (tx_k2m, rx_k2m) = mpsc::channel();
+    // main            <->interactor
+    let (tx_m2i, rx_m2i) = mpsc::channel();
+    let (tx_i2m, rx_i2m) = mpsc::channel::<MainToFromThreads>();
+    //          killer -> interactor
+    let (tx_i2k, rx_i2k) = mpsc::channel();
+    // Set up the killing task
     let killer_handle = thread::spawn(move || {
-        focus_ami::killer(&tx_from_killer, &rx_to_killer);
+        killer::killer(&tx_k2m, &rx_m2k, &rx_i2k);
     });
-    let mut init_time = Instant::now();
-    tx.send(Coms::Message(config.clone(), Some(init_time)))
-        .expect(errors::COM);
-    match interactive {
-        InteractType::NormalRun => {
-            config.print_curr_state();
-            println!("{}", interact::INSTRUCTIONS);
-            utils::bar();
-            let (interuptor, interruptee) = mpsc::channel();
-            let int = interuptor.clone();
-            thread::spawn(move || {
-                utils::async_string(&int);
-            });
-            //I don't really care what happens to it, only if it produces a value
-            while rx.try_recv().is_err() {
-                thread::sleep(Duration::from_millis(500));
-                if let Ok(string) = interruptee.try_recv() {
-                    (config, init_time) = inter::interact(&string, &tx.clone(), config, init_time);
-                    // handle the petition, then spawn another
-                    let int = interuptor.clone();
-                    thread::spawn(move || {
-                        utils::async_string(&int);
-                    });
-                    utils::bar();
-                };
-            }
-            println!("{}", interact::FINNISH);
+    // Set up the interactive task
+    let interactor_handle = thread::spawn(move || {
+        user::thread(&tx_i2m, &tx_i2k, &rx_m2i, arg_info);
+    });
+    // see if somebody says to die, and then kill the other
+    loop {
+        if rx_k2m.try_recv().is_ok() {
+            tx_m2i.send(MainToFromThreads).unwrap();
+            break;
         }
-        InteractType::SilentRun => {
-            rx.recv().expect(errors::COM);
+        if rx_i2m.try_recv().is_ok() {
+            tx_m2k.send(MainToFromThreads).unwrap();
+            break;
         }
-    };
-    tx.send(Coms::End).expect(errors::COM);
+        thread::sleep(Duration::from_millis(500));
+    }
     killer_handle.join().unwrap();
-    config.write_config(&path);
+    interactor_handle.join().unwrap();
+    println!("\x07Finished");
 }

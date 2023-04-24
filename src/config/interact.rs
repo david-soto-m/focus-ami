@@ -1,78 +1,170 @@
-use crate::utils;
-use std::collections::HashSet;
+use dialoguer::{History, Input};
+use std::{collections::HashSet, time::Duration};
 
-/// Returns a valid kill time from an interaction with the user
-pub fn kill_time(def: Option<u8>) -> u8 {
-    println!(
-        "We will set the period after which to kill processes.
-Please provide a number that will be interpreted as seconds
-By default: {} || Max: 255 || Min 1",
-        def.unwrap_or(30)
-    );
-    match utils::get_item() {
-        Some(num) => {
-            if num > 0 {
-                num
-            } else {
-                1
-            }
+pub fn get_work_dur(orig: Duration) -> Duration {
+    Duration::from_secs(loop {
+        let proposed_time: u64 = Input::new()
+            .with_prompt("Set the default time length [min] for focusing")
+            .default(orig.as_secs() / 60)
+            .interact_text()
+            .unwrap();
+        if let Some(tm) = proposed_time.checked_mul(60) {
+            break tm;
         }
-        None => 30,
-    }
+    })
 }
 
-/// Returns a valid `work_time` from an interaction with the user
-pub fn work_time(def: Option<u16>) -> u16 {
-    let max_work_time = u16::MAX - u16::from(u8::MAX);
+pub fn get_kill_period(orig: Duration) -> Duration {
+    Duration::from_secs(loop {
+        let proposed_time: u64 = Input::new()
+            .with_prompt("Set the process killing period [sec; t>0].")
+            .default(orig.as_secs())
+            .interact_text()
+            .unwrap();
+        if proposed_time > 0 {
+            break proposed_time;
+        }
+    })
+}
 
-    let value = def.unwrap_or(30);
-    println!(
-        "Now we are going to determine the minutes you want to focus.
-Please provide a number that will be interpreted as minutes
-By default: {value} || Max: {max_work_time}"
-    );
-    let a = utils::get_item().unwrap_or(value);
-    if a <= max_work_time && a >= 1 {
-        a
-    } else if a > max_work_time {
-        max_work_time
+pub fn get_password(orig: &str) -> String {
+    Input::new()
+        .with_prompt("Set the password")
+        .default(orig.to_string())
+        .with_initial_text(orig)
+        .interact()
+        .unwrap()
+}
+
+enum IsEscaped {
+    Escaped,
+    NotEscaped,
+}
+
+fn process_rest(rest: &str) -> Vec<String> {
+    let mut store: Vec<String> = vec![];
+    let mut word = String::new();
+
+    let mut is_escaped = IsEscaped::NotEscaped;
+    rest.chars().for_each(|c| {
+        match c {
+            '\\' => match is_escaped {
+                IsEscaped::Escaped => {
+                    word.push(c);
+                    is_escaped = IsEscaped::NotEscaped;
+                }
+                IsEscaped::NotEscaped => is_escaped = IsEscaped::Escaped,
+            },
+            ' ' => match is_escaped {
+                IsEscaped::Escaped => {
+                    is_escaped = IsEscaped::NotEscaped;
+                    word.push(c);
+                }
+                IsEscaped::NotEscaped => {
+                    store.push(word.clone());
+                    word = String::new();
+                }
+            },
+            _ => {
+                is_escaped = IsEscaped::NotEscaped;
+                word.push(c);
+            }
+        };
+    });
+    if !word.is_empty() {
+        store.push(word);
+    }
+    store
+}
+
+fn parse_command(cmd: &str, process: &mut HashSet<String>) -> bool {
+    let cmd = cmd.trim();
+    if cmd.is_empty() {
+        true
     } else {
-        1
+        let (command, rest) = if let Some((command, rest)) = cmd.split_once(' ') {
+            (command, rest)
+        } else {
+            (cmd, "")
+        };
+        let rest = process_rest(rest);
+        match command.to_ascii_lowercase().as_str() {
+            "add" => {
+                for each in rest {
+                    process.insert(each);
+                }
+                true
+            }
+            "rm" => {
+                for each in rest {
+                    process.remove(&each);
+                }
+                true
+            }
+            "v" | "view" => {
+                println!("Current processes are: {process:#?}");
+                true
+            }
+            "q" | "quit" => false,
+            _ => true,
+        }
     }
 }
 
-/// Returns a password form an interaction with the user
-pub fn password(def: Option<&str>) -> String {
+pub fn get_processes(process: &mut HashSet<String>, hist: &mut MyHist){
     println!(
-        "Lets set up a password.
-This is not for security, but in order to be a nuisance
-That way you may be discouraged to quit the second you get distracted
-By default: {} || Recommended : aslkdhgjhkadbchjqwmepam ionk",
-        def.unwrap_or("a")
+        "
+Commands:
+    * add <process>
+    * rm <process>
+    * (q|quit)
+    * (v|view)
+    * diff
+  Where:
+    process: (proc_term|proc_term process)
+    proc_term: (\\ |\\\\|[^\\ ])+
+      If your process contains ' ' or '\\' you must escape the character with a
+      '\\'. Escaping other characters doesn't have an effect.
+      Examples:
+        - The Web Content process must be written as
+          `: add Web\\ Content`
+        - A process called sal dn\\lkasdm
+          `: add sal\\ dn\\\\lkasdm
+Non ASCII characters are very badly supported (not at all)"
     );
-    match utils::get_item() {
-        Some(stri) => stri,
-        None => def.unwrap_or("a").to_string(),
+    println!("Current processes are: {process:#?}");
+    let mut cmd = String::new();
+    while parse_command(&cmd, process) {
+        cmd = Input::new()
+            .history_with(hist)
+            .with_prompt(">")
+            .interact_text()
+            .unwrap();
     }
 }
 
-/// Returns a `HashSet` of processes form interactions with the user, some items
-/// might be bonkers but they are checked before execution
-pub fn processes(def: Option<HashSet<String>>) -> HashSet<String> {
-    let def = def.unwrap_or_default();
-    println!(
-        "Lets set up the processes to be blocked
-If you need help to get the name of a process please
-1. When you only have unknown processes type \\q
-2. Run \"focus -a\". Alternatively use ps -e (and diff?) to figure out the name
-   of your process
-3. Add it to your config during a normal run
-To add a process type it and press enter
-To remove a process type \"rm process_name\" as in rm firefox.
-To view current processes type \\w
-To stop adding processes type \\q.
-Current processes are:
-{def:?}",
-    );
-    utils::get_proc(def)
+pub struct MyHist {
+    hist: Vec<String>,
+}
+impl MyHist {
+    pub fn new() -> Self {
+        Self { hist: vec![] }
+    }
+}
+
+impl History<String> for MyHist {
+    fn read(&self, pos: usize) -> Option<String> {
+        self.hist
+            .get(
+                self.hist
+                    .len()
+                    .checked_sub(pos)
+                    .and_then(|x| x.checked_sub(1))
+                    .unwrap_or(0),
+            )
+            .cloned()
+    }
+    fn write(&mut self, val: &String) {
+        self.hist.push(val.to_string());
+    }
 }
