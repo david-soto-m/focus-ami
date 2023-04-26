@@ -1,5 +1,7 @@
+use crate::annotator;
 use dialoguer::{History, Input};
 use std::{collections::HashSet, time::Duration};
+use sysinfo::{System, SystemExt};
 
 pub fn get_work_dur(orig: Duration) -> Duration {
     Duration::from_secs(loop {
@@ -90,9 +92,7 @@ fn parse_command(cmd: &str, process: &mut HashSet<String>) -> bool {
         let rest = process_rest(rest);
         match command.to_ascii_lowercase().as_str() {
             "add" => {
-                for each in rest {
-                    process.insert(each);
-                }
+                process.extend(rest);
                 true
             }
             "rm" => {
@@ -105,13 +105,35 @@ fn parse_command(cmd: &str, process: &mut HashSet<String>) -> bool {
                 println!("Current processes are: {process:#?}");
                 true
             }
+            "diff" => {
+                let mut system = System::new();
+                let procs = annotator::get_procs(&mut system);
+                Input::<String>::new()
+                    .with_prompt(
+                        "Run the programs you want to know the process name of and press enter",
+                    )
+                    .allow_empty(true)
+                    .interact()
+                    .unwrap();
+                let mut system2 = System::new();
+                let procs2 = annotator::get_procs(&mut system2);
+                let mut system3 = System::new();
+                let user = if rest == vec!["-f".to_string()] {
+                    None
+                } else {
+                    annotator::get_user(&mut system3)
+                };
+                let diff_proc_names = annotator::diff_procs(procs, procs2, user);
+                println!("These processes are different: {diff_proc_names:#?}");
+                true
+            }
             "q" | "quit" => false,
             _ => true,
         }
     }
 }
 
-pub fn get_processes(process: &mut HashSet<String>, hist: &mut MyHist){
+pub fn get_processes(process: &mut HashSet<String>, hist: &mut MyHist) {
     println!(
         "
 Commands:
@@ -119,7 +141,7 @@ Commands:
     * rm <process>
     * (q|quit)
     * (v|view)
-    * diff
+    * diff (-f)?
   Where:
     process: (proc_term|proc_term process)
     proc_term: (\\ |\\\\|[^\\ ])+
@@ -130,7 +152,8 @@ Commands:
           `: add Web\\ Content`
         - A process called sal dn\\lkasdm
           `: add sal\\ dn\\\\lkasdm
-Non ASCII characters are very badly supported (not at all)"
+Non ASCII characters are very badly supported (not at all)
+The `-f` flag in the diff  disables a user filter"
     );
     println!("Current processes are: {process:#?}");
     let mut cmd = String::new();

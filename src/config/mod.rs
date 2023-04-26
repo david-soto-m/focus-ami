@@ -1,6 +1,6 @@
+use dialoguer::{Confirm, FuzzySelect};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, fs, path::Path, time::Duration};
-use dialoguer::{Confirm, FuzzySelect};
 
 mod interact;
 use interact::MyHist;
@@ -40,16 +40,13 @@ impl Config {
         Ok(serde_yaml::from_str::<Config>(&fs::read_to_string(filename).unwrap())?.sanity_check())
     }
     pub fn write(&self, filename: &Path) -> std::io::Result<()> {
-        fs::write(
-            filename,
-            serde_yaml::to_string(&self).unwrap(),
-        )
+        fs::write(filename, serde_yaml::to_string(&self).unwrap())
     }
     /// Returns true if process is in process list, otherwise it returns false.
     pub fn contains(&self, proc: &str) -> bool {
         self.processes.contains(proc)
     }
-    pub fn usr_edit(& mut self){
+    pub fn usr_edit(&mut self) {
         const OPT_ARRAY: [&str; 5] = [
             "Default focus time",
             "Kill period",
@@ -73,7 +70,7 @@ impl Config {
                 4 => break,
                 _ => {}
             };
-        };
+        }
     }
 }
 
