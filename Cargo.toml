@@ -1,6 +1,6 @@
 [package]
 name = "focus-ami"
-version = "0.1.1"
+version = "1.0.0"
 edition = "2021"
 license = "Unlicense"
 repository = "https://github.com/david-soto-m/focus-ami"
@@ -18,3 +18,7 @@ directories = "^4.0"
 clap = { version = "^4.0", features = ["derive"] }
 dialoguer = { version = "^0.10", features = ["fuzzy-select", "history", "completion"]}
 console = "0.15.5"
+color-eyre = "0.6.2"
+
+[profile.dev.package.backtrace]
+opt-level = 3

@@ -1,11 +1,11 @@
 use crate::comms::{InteractToKiller, MainToFromThreads};
+use color_eyre::eyre::{Context, Result};
 use std::{
     sync::mpsc::{Receiver, Sender},
     thread,
     time::Instant,
 };
 use sysinfo::{ProcessExt, System, SystemExt};
-
 /// This function is the one that sends the kill signals to the processes
 /// It waits for a Config to be sent to it to start blocking.
 ///
@@ -21,15 +21,15 @@ pub fn killer(
     tx_to_main: &Sender<MainToFromThreads>,
     rx_from_main: &Receiver<MainToFromThreads>,
     rx_from_user: &Receiver<InteractToKiller>,
-) {
+) -> Result<()> {
     let init_time = Instant::now();
-    let InteractToKiller::Config(mut config) = rx_from_user.recv().unwrap() else {
+    let InteractToKiller::Config(mut config) = rx_from_user.recv().context("failed to recieve config")? else {
         panic!("") //TODO Not correct error!
     };
     let mut dur = config.work_duration;
     //while no new main msgs ↓ and not enough time has passed since init_time ↓  run
     while rx_from_main.try_recv().is_err() && init_time.elapsed() < dur {
-        check_user_messages(rx_from_user, &mut dur, &mut config);
+        check_user_messages(rx_from_user, &mut dur, &mut config)?;
         let s = System::new_all();
         s.processes()
             .iter()
@@ -39,7 +39,11 @@ pub fn killer(
             });
         thread::sleep(config.kill_period);
     }
-    tx_to_main.send(MainToFromThreads).unwrap();
+    println!("\x07Finished!! Please pulse `Enter`");
+    tx_to_main
+        .send(MainToFromThreads)
+        .context("failed to send kill message to main thread from killer")?;
+    Ok(())
 }
 
 /// Handles user messages
@@ -57,11 +61,14 @@ fn check_user_messages(
     rx_from_user: &Receiver<InteractToKiller>,
     dur: &mut std::time::Duration,
     config: &mut crate::config::Config,
-) {
+) -> Result<()> {
     if let Ok(message) = rx_from_user.try_recv() {
         match message {
             InteractToKiller::Pause => {
-                if let InteractToKiller::Time(d) = rx_from_user.recv().unwrap() {
+                if let InteractToKiller::Time(d) = rx_from_user
+                    .recv()
+                    .context("failed to recive an unpause message from the user")?
+                {
                     *dur = d;
                 }
             }
@@ -73,4 +80,5 @@ fn check_user_messages(
             }
         }
     }
+    Ok(())
 }

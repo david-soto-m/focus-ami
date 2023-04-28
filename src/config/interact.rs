@@ -1,41 +1,42 @@
 use crate::annotator;
+use color_eyre::eyre::{Context, Result};
 use dialoguer::{History, Input};
 use std::{collections::HashSet, time::Duration};
 use sysinfo::{System, SystemExt};
 
-pub fn get_work_dur(orig: Duration) -> Duration {
-    Duration::from_secs(loop {
+pub fn get_work_dur(orig: Duration) -> Result<Duration> {
+    Ok(Duration::from_secs(loop {
         let proposed_time: u64 = Input::new()
             .with_prompt("Set the default time length [min] for focusing")
             .default(orig.as_secs() / 60)
             .interact_text()
-            .unwrap();
+            .context("failed to focusing time")?;
         if let Some(tm) = proposed_time.checked_mul(60) {
             break tm;
         }
-    })
+    }))
 }
 
-pub fn get_kill_period(orig: Duration) -> Duration {
-    Duration::from_secs(loop {
+pub fn get_kill_period(orig: Duration) -> Result<Duration> {
+    Ok(Duration::from_secs(loop {
         let proposed_time: u64 = Input::new()
             .with_prompt("Set the process killing period [sec; t>0].")
             .default(orig.as_secs())
             .interact_text()
-            .unwrap();
+            .context("failed to get the killing period")?;
         if proposed_time > 0 {
             break proposed_time;
         }
-    })
+    }))
 }
 
-pub fn get_password(orig: &str) -> String {
+pub fn get_password(orig: &str) -> Result<String> {
     Input::new()
         .with_prompt("Set the password")
         .default(orig.to_string())
         .with_initial_text(orig)
         .interact()
-        .unwrap()
+        .context("failed to get the password")
 }
 
 enum IsEscaped {
@@ -79,9 +80,9 @@ fn process_rest(rest: &str) -> Vec<String> {
     store
 }
 
-fn parse_command(cmd: &str, process: &mut HashSet<String>) -> bool {
+fn parse_command(cmd: &str, process: &mut HashSet<String>) -> Result<bool> {
     let cmd = cmd.trim();
-    if cmd.is_empty() {
+    Ok(if cmd.is_empty() {
         true
     } else {
         let (command, rest) = if let Some((command, rest)) = cmd.split_once(' ') {
@@ -106,34 +107,37 @@ fn parse_command(cmd: &str, process: &mut HashSet<String>) -> bool {
                 true
             }
             "diff" => {
-                let mut system = System::new();
-                let procs = annotator::get_procs(&mut system);
-                Input::<String>::new()
-                    .with_prompt(
-                        "Run the programs you want to know the process name of and press enter",
-                    )
-                    .allow_empty(true)
-                    .interact()
-                    .unwrap();
-                let mut system2 = System::new();
-                let procs2 = annotator::get_procs(&mut system2);
-                let mut system3 = System::new();
-                let user = if rest == vec!["-f".to_string()] {
-                    None
-                } else {
-                    annotator::get_user(&mut system3)
-                };
-                let diff_proc_names = annotator::diff_procs(procs, procs2, user);
-                println!("These processes are different: {diff_proc_names:#?}");
+                get_difference(&rest)?;
                 true
             }
             "q" | "quit" => false,
             _ => true,
         }
-    }
+    })
 }
 
-pub fn get_processes(process: &mut HashSet<String>, hist: &mut MyHist) {
+fn get_difference(rest: &[String]) -> Result<()> {
+    let mut system = System::new();
+    let procs = annotator::get_procs(&mut system);
+    Input::<String>::new()
+        .with_prompt("Run the programs you want to know the process name of and press enter")
+        .allow_empty(true)
+        .interact()
+        .context("failed to get confirmation")?;
+    let mut system2 = System::new();
+    let procs2 = annotator::get_procs(&mut system2);
+    let mut system3 = System::new();
+    let user = if rest == vec!["-f".to_string()] {
+        None
+    } else {
+        annotator::get_user(&mut system3)
+    };
+    let diff_proc_names = annotator::diff_procs(procs, procs2, user);
+    println!("These processes are different: {diff_proc_names:#?}");
+    Ok(())
+}
+
+pub fn get_processes(process: &mut HashSet<String>, hist: &mut MyHist) -> Result<()> {
     println!(
         "
 Commands:
@@ -157,13 +161,14 @@ The `-f` flag in the diff  disables a user filter"
     );
     println!("Current processes are: {process:#?}");
     let mut cmd = String::new();
-    while parse_command(&cmd, process) {
+    while parse_command(&cmd, process)? {
         cmd = Input::new()
             .history_with(hist)
             .with_prompt(">")
             .interact_text()
-            .unwrap();
+            .context("failed to get a command")?;
     }
+    Ok(())
 }
 
 pub struct MyHist {
