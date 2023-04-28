@@ -6,7 +6,9 @@ use dialoguer::{Confirm, FuzzySelect};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt, fs, path::Path, time::Duration};
 mod interact;
-use interact::MyHist;
+use history::MyHist;
+mod completion;
+mod history;
 
 #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Debug)]
 pub struct Config {

@@ -1,9 +1,9 @@
 use crate::annotator;
+use crate::config::{completion::Compl, history::MyHist};
 use color_eyre::eyre::{Context, Result};
-use dialoguer::{History, Input};
+use dialoguer::Input;
 use std::{collections::HashSet, time::Duration};
 use sysinfo::{System, SystemExt};
-
 pub fn get_work_dur(orig: Duration) -> Result<Duration> {
     Ok(Duration::from_secs(loop {
         let proposed_time: u64 = Input::new()
@@ -164,35 +164,10 @@ The `-f` flag in the diff  disables a user filter"
     while parse_command(&cmd, process)? {
         cmd = Input::new()
             .history_with(hist)
+            .completion_with(&Compl {})
             .with_prompt(">")
             .interact_text()
             .context("failed to get a command")?;
     }
     Ok(())
-}
-
-pub struct MyHist {
-    hist: Vec<String>,
-}
-impl MyHist {
-    pub fn new() -> Self {
-        Self { hist: vec![] }
-    }
-}
-
-impl History<String> for MyHist {
-    fn read(&self, pos: usize) -> Option<String> {
-        self.hist
-            .get(
-                self.hist
-                    .len()
-                    .checked_sub(pos)
-                    .and_then(|x| x.checked_sub(1))
-                    .unwrap_or(0),
-            )
-            .cloned()
-    }
-    fn write(&mut self, val: &String) {
-        self.hist.push(val.to_string());
-    }
 }

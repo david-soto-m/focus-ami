@@ -18,7 +18,7 @@ pub struct Cli {
     #[clap(conflicts_with = "config")]
     /// The time in minutes to focus for.
     pub focus_period: Option<u64>,
-    /// Use the configuration at the path [CONFIG_PATH].
+    /// Use the configuration at the path.
     #[clap(short, long)]
     pub path: Option<PathBuf>,
 }
