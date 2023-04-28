@@ -1,120 +1,59 @@
 # focus-ami
 
-A command line tool to kill processes.
+A command line tool to focus for a given time. It kills processes given by a
+list every so often.
 
-Its purpose is to focus for a given period of time, blocking all distracting
-apps specified.
+The configuration requires a password. This is not a secret, it's more of an
+annoyance so that you don't end up procrastinating or quitting.
 
-# ***This project is undergoing maintenance***
+From its help:
 
-## Configuration
+A command line tool to help focus by killing processes
 
-The first time running the program, you will be asked to create a configuration
-file.
+**Usage**:
 
-First, you'll be asked to provide an interval between process killing times in
-seconds. It's bound in an u8 that corresponds to a bit less than five minutes.
-A thirty seconds interval is normally fine.
+`focus-ami [OPTIONS] [FOCUS_PERIOD]`
 
-Then you will be asked for a period of time to focus in minutes. This value is
-bound by 65280. This corresponds to 45 days and a bit, but I doubt you
-need to focus for that long.
+**Arguments**:
 
-At this point you'll be asked for a "password" this password will be asked
-before some actions. The idea being that if the password is long enough
-you might think twice before pausing, editing or quitting.
+`[FOCUS_PERIOD]`  The time in minutes to focus for
 
-Finally, you will be asked for the list of processes to kill. Because this list
-is a list of process names, it can be a little tricky. That's why there is a
-helper included with this program, the annotator.
+Options:
 
-An example of the final configuration file is:
+-   `-c`, `--config`       Edit the configuration
+-   `-p`, `--path <PATH>`  Use the configuration at the path
+-   `-h`, `--help`         Print help
+-   `-V`, `--version`      Print version
 
-```yaml
----
-kill_time: 30
-work_time: 30
-password: a
-processes:
-  - firefox-bin
-  - vlc.bin
-```
+## Notes
 
-It is possible to have a work time that is smaller than the kill time, it makes
-sense when you want to run once the killing part, and then quit.
+1. This version **BREAKS BACKWARDS COMPATIBILITY**
+    * the config file is not compatible with the configuration of earlier
+      versions of the program. It is also called differently.
+    * The CLI is different, `annotator` is now imbued inside the `config`
+      option which previously was the configuration path but now means that you
+      want to edit the config file. It's a mess. If you were relying on a
+      previous version to do anything, this version will break everything.
+2. This project is in maintenance mode. I have almost finished my master's
+  thesis, and I don't think I'll be using it that frequently now. This project
+  started as a way to force me to study in the last year of my degree as
+  `concentrate` and I could never have predicted what is has become. I can
+  almost productively use it now!
 
-## Annotator
+  All this to say that I won't be adding new features in the foreseeable future,
+  but if you want to contribute or report a bug, please do. I will review your
+  contribution or try to solve your bug.
 
-Run the program like this:
+## Installing
 
-`focus-ami -a`
+### With cargo
 
-Then start your application. This can fail in three ways.
+`cargo install focus-ami`
 
-1. Your user is not the one responsible for the process created.
-1. The process was already started.
-1. The process is an instance of something else running it, e.g., python3
-applications.
-
-The first way can be circumvented by not running the user check using
-
-`focus-ami --annotate-no-user`
-
-If that doesn't work in KDE systems `control-esc` might help you with the
-system activity tool. Probably other DEs have some similar tools, such as the
-task manager in Windows systems.
-
-In *nix systems other option is to try to identify your process running `ps -e`
-while it's running the application to identify.
-
-A better way to do basically the same is to follow this instructions
-
-1. run `$ ps -e > file1`
-1. start your application
-1. in the same directory as in the first instruction run `$ ps -e > file2`
-1. run `$ diff file1 file2`
-
-## Use
-
-### Command Line Arguments
-
-The application accepts the following command line arguments
+### Source install
 
 ```
-USAGE:
-    focus-ami [OPTIONS]
-
-OPTIONS:
--a, --annotate            Annotator mode, a guide to find processes names
-    --annotate-no-user    Annotator mode, a guide to find processes names, without filtering for
-                          user
--c, --config <CONFIG>     Use the configuration from <CONFIG>. <CONFIG> is a path starting from
-                          your current working directory
--h, --help                Print help information
--s, --silent              Disallow interactions during the focus period
--V, --version             Print version information
-
+git clone https://github.com/david-soto-m/focus-ami.git
+cd focus-ami
+cargo install --path .
 ```
-
-
-### Interactions
-
-Possible interactions are:
-
-* `e`: edit the configuration file
-* `p`: pause
-* `q`: quit early
-* `r`: see remaining time
-* `a`: add some time to current run (but not to the configuration file)
-
-#### Edit
-
-You can edit parts or your configuration file, while running the program. Your
-available options are:
-
-* `k`: edit the time that passes between process killings
-* `w`: edit the work time
-* `p`: edit the password
-* `e`: edit the processes
-* `c`: check the config
-* `\q`: stop editing
